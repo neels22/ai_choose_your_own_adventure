@@ -1,7 +1,2 @@
-# readme file
 
-exposing endpoints using fast api
-/generatestory
-/getstory
-/getstoryresult
-
+check out project workflow diagram
