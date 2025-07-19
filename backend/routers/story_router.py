@@ -5,12 +5,12 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException,Cookie,Response,BackgroundTasks
 from sqlalchemy.orm import Session
 
-from db.database import get_db
+from db.database import get_db, SessionLocal
 from models.story_model import Story,StoryNode
 from models.job_model import StoryJob
 from schemas.story_schema import CreateStoryRequest,CompleteStoryResponse,CompleteStoryNodeResponse
 from schemas.job_schema import StoryJobCreate,StoryJobResponse
-
+from core.story_generator import StoryGenerator
 
 router = APIRouter(
     prefix="/stories",
@@ -73,8 +73,8 @@ def generate_story_task(job_id:str,session_id:str,theme:str):
         try:
             job.status = "processing"
             db.commit()
-            story = {} #TODO : generate story 
-            job.story_id = 1 # TODO: update story id 
+            story = StoryGenerator.generate_story(db,session_id,theme) #TODO : generate story 
+            job.story_id = story.id # TODO: update story id 
             job.status = "completed"
             job.completed_at = datetime.now()
             db.commit()
@@ -101,10 +101,31 @@ def get_complete_story(
     return complete_story
 
 
+############### what is this function doing???
 
-def build_complete_story_tree(db:Session,story:Story)->CompleteStoryResponse:
-    pass
+def build_complete_story_tree(db: Session, story: Story) -> CompleteStoryResponse:
+    nodes = db.query(StoryNode).filter(StoryNode.story_id == story.id).all()
 
+    node_dict = {}
+    for node in nodes:
+        node_response = CompleteStoryNodeResponse(
+            id=node.id,
+            content=node.content,
+            is_ending=node.is_ending,
+            is_winning_ending=node.is_winning_ending,
+            options=node.options
+        )
+        node_dict[node.id] = node_response
 
+    root_node = next((node for node in nodes if node.is_root), None)
+    if not root_node:
+        raise HTTPException(status_code=500, detail="Story root node not found")
 
-
+    return CompleteStoryResponse(
+        id=story.id,
+        title= story.title,
+        session_id=story.session_id,
+        created_at=story.created_at,
+        root_node=node_dict[root_node.id],
+        all_nodes=node_dict
+    )
