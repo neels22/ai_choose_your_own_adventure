@@ -93,7 +93,7 @@ def get_complete_story(
     db:Session = Depends(get_db)
 ):
     story = db.query(Story).filter(Story.id == story_id).first()
-    if not Story:
+    if not story:
         raise HTTPException(status_code=404,detail="Story not found")
     
 
